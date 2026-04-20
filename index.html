@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Season Manager</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede8;
+    --text: #1a1a1a; --text2: #666; --text3: #999;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
+    --radius: 8px; --radius-lg: 12px;
+    --green: #3B6D11; --amber: #854F0B; --red: #A32D2D; --blue: #185FA5;
+    --green-bg: #EAF3DE; --amber-bg: #FAEEDA; --red-bg: #FCEBEB; --blue-bg: #E6F1FB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #242422; --bg3: #2c2c2a;
+      --text: #f0efe8; --text2: #a0a09a; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --green: #97C459; --amber: #EF9F27; --red: #F09595; --blue: #85B7EB;
+      --green-bg: #173404; --amber-bg: #412402; --red-bg: #501313; --blue-bg: #042C53;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); font-size: 14px; min-height: 100vh; }
+  .topbar { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .topbar-title { font-size: 16px; font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .season-badge { background: var(--blue-bg); color: var(--blue); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .main { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+  .tabs { display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius-lg); padding: 4px; margin-bottom: 1.5rem; width: fit-content; }
+  .tab { padding: 7px 18px; border-radius: var(--radius); border: none; background: none; color: var(--text2); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .section { display: none; } .section.active { display: block; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi { background: var(--bg); border-radius: var(--radius-lg); padding: 14px 16px; border: 0.5px solid var(--border); }
+  .kpi-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value { font-size: 24px; font-weight: 500; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 11px; color: var(--text2); font-weight: 500; }
+  input, select, textarea { font-size: 13px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); width: 100%; font-family: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  .btn { padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.8; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-danger { color: var(--red); border-color: var(--red); }
+  .btn-danger:hover { background: var(--red-bg); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { font-size: 11px; font-weight: 500; color: var(--text3); text-align: left; padding: 8px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--bg); }
+  td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  td input, td select { padding: 4px 6px; font-size: 12px; min-width: 80px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .badge-m { background: var(--blue-bg); color: var(--blue); }
+  .badge-f { background: #FBEAF0; color: #72243E; }
+  .badge-u { background: var(--bg2); color: var(--text2); }
+  .pct-bar { display: flex; align-items: center; gap: 6px; }
+  .pct-track { width: 50px; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .pct-fill { height: 100%; border-radius: 3px; }
+  .good { background: var(--green); } .mid { background: var(--amber); } .low { background: var(--red); }
+  .empty-state { text-align: center; padding: 3rem; color: var(--text3); font-size: 13px; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .filter-row select, .filter-row input { width: auto; min-width: 130px; }
+  .loading { text-align: center; padding: 2rem; color: var(--text3); }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: var(--radius-lg); font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--red); color: white; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .import-area { border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; color: var(--text2); cursor: pointer; transition: all 0.15s; margin-bottom: 1rem; }
+  .import-area:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+  .import-preview { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+  .sezona-mgmt { display: flex; gap: 8px; align-items: center; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--radius-lg); padding: 1.5rem; width: min(500px, 90vw); border: 0.5px solid var(--border); }
+  .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+  code { font-family: monospace; background: var(--bg2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">Brand Season Manager</div>
+  <div class="topbar-right">
+    <select id="season-sel" style="width:auto;" onchange="changeSeason(this.value)"></select>
+    <button class="btn btn-sm" onclick="openSezonaModal()">+ Sezona</button>
+    <div id="sync-status" style="font-size:12px; color:var(--text3);">⏳ Učitavanje...</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('pregled')">Pregled</button>
+    <button class="tab" onclick="switchTab('artikli')">Artikli</button>
+    <button class="tab" onclick="switchTab('isporuke')">Isporuke</button>
+    <button class="tab" onclick="switchTab('prodaja')">Prodaja</button>
+  </div>
+
+  <!-- PREGLED -->
+  <div id="tab-pregled" class="section active">
+    <div class="kpi-grid" id="kpi-grid"><div class="loading"><span class="spinner"></span>Učitavam podatke...</div></div>
+    <div class="two-col">
+      <div class="card"><div class="card-title">Top artikli po prodaji</div><div id="top-items"></div></div>
+      <div class="card"><div class="card-title">Sell-through po spolu</div><div id="gender-breakdown"></div></div>
+    </div>
+    <div class="card"><div class="card-title">Posljednje aktivnosti</div><div id="recent-activity"></div></div>
+  </div>
+
+  <!-- ARTIKLI -->
+  <div id="tab-artikli" class="section">
+    <div class="card">
+      <div class="card-title">Dodaj artikl</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Kataloški kod *</label><input id="a-kod" placeholder="npr. SS25-001"></div>
+        <div class="form-group"><label>Ime artikla *</label><input id="a-ime" placeholder="naziv"></div>
+        <div class="form-group"><label>Spol</label><select id="a-spol"><option value="M">Muški</option><option value="F">Ženski</option><option value="U">Unisex</option></select></div>
+        <div class="form-group"><label>Šifra vrste</label><input id="a-vrsta" placeholder="JAC, SHO..."></div>
+        <div class="form-group"><label>Termin isporuke</label><input id="a-termin" type="month"></div>
+        <div class="form-group"><label>Kol. naručeno</label><input id="a-naruceno" type="number" min="0" placeholder="0"></div>
+        <div class="form-group"><label>Kol. nadopunjeno</label><input id="a-nadopunjeno" type="number" min="0" placeholder="0"></div>
+        <div class="form-group"><label>Prodajna cijena (€)</label><input id="a-cijena" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Nabavna cijena (€)</label><input id="a-nabavna" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="addArtikal()">+ Dodaj artikl</button>
+        <button class="btn" onclick="document.getElementById('csv-input').click()">📥 Import CSV/Excel</button>
+        <input type="file" id="csv-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="importCSV(event)">
+        <button class="btn" onclick="downloadTemplate()">⬇ Preuzmi predložak</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:1rem 1.25rem 0.5rem;">
+      <div class="card-title" style="margin-bottom:0.5rem;">Import — copy-paste iz Excela</div>
+      <p style="font-size:12px; color:var(--text2); margin-bottom:8px;">Kopiraj retke iz Excela i zalijepi ovdje. Redosljed kolona: kod, ime, spol, vrsta, termin, kol_naručeno, kol_nadopunjeno, cijena, nabavna</p>
+      <textarea id="paste-area" rows="4" placeholder="Zalijepi podatke iz Excela ovdje..." style="width:100%; font-family:monospace; font-size:12px; resize:vertical;"></textarea>
+      <button class="btn btn-primary" style="margin-top:8px; margin-bottom:1rem;" onclick="importPaste()">Uvezi zalijepljene podatke</button>
+    </div>
+
+    <div class="filter-row">
+      <select id="filter-spol" onchange="renderArtikli()"><option value="">Svi spolovi</option><option value="M">Muški</option><option value="F">Ženski</option><option value="U">Unisex</option></select>
+      <input id="filter-search" placeholder="Pretraži po kodu ili imenu..." oninput="renderArtikli()" style="min-width:220px;">
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Kod</th><th>Ime artikla</th><th>Spol</th><th>Vrsta</th><th>Termin</th>
+            <th>Naručeno</th><th>Nadopunjeno</th><th>Total kol.</th><th>Isporučeno</th><th>Prodano</th><th>Zaliha</th>
+            <th>% Isporuke</th><th>% Prodaje</th><th>Sell-through</th>
+            <th>GMROI</th><th>Coverage</th><th>ASP (€)</th><th>Margin %</th><th>Akcija</th>
+          </tr></thead>
+          <tbody id="artikli-tbody"><tr><td colspan="19" class="loading"><span class="spinner"></span>Učitavanje...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISPORUKE -->
+  <div id="tab-isporuke" class="section">
+    <div class="card">
+      <div class="card-title">Unesi isporuku</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Artikl *</label><select id="i-artikl"><option value="">-- Odaberi --</option></select></div>
+        <div class="form-group"><label>Datum *</label><input id="i-datum" type="date"></div>
+        <div class="form-group"><label>Količina *</label><input id="i-kol" type="number" min="1" placeholder="0"></div>
+        <div class="form-group"><label>Napomena</label><input id="i-napomena" placeholder="npr. 1. isporuka..."></div>
+      </div>
+      <button class="btn btn-primary" onclick="addIsporuka()">+ Unesi isporuku</button>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Datum</th><th>Kod</th><th>Artikl</th><th>Količina</th><th>Napomena</th><th>Akcija</th></tr></thead>
+          <tbody id="isporuke-tbody"><tr><td colspan="6" class="loading"><span class="spinner"></span>Učitavanje...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODAJA -->
+  <div id="tab-prodaja" class="section">
+    <div class="card">
+      <div class="card-title">Unesi prodaju</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Artikl *</label><select id="p-artikl"><option value="">-- Odaberi --</option></select></div>
+        <div class="form-group"><label>Datum *</label><input id="p-datum" type="date"></div>
+        <div class="form-group"><label>Količina *</label><input id="p-kol" type="number" min="1" placeholder="0"></div>
+        <div class="form-group"><label>Prodajna cijena (€)</label><input id="p-cijena" type="number" step="0.01" placeholder="(auto iz artikla)"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addProdaja()">+ Unesi prodaju</button>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Datum</th><th>Kod</th><th>Artikl</th><th>Količina</th><th>Cijena (€)</th><th>Prihod (€)</th><th>Akcija</th></tr></thead>
+          <tbody id="prodaja-tbody"><tr><td colspan="7" class="loading"><span class="spinner"></span>Učitavanje...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal za novu sezonu -->
+<div class="modal-overlay" id="sezona-modal">
+  <div class="modal">
+    <h3>Dodaj novu sezonu</h3>
+    <div class="form-group" style="margin-bottom:1rem;">
+      <label>Naziv sezone</label>
+      <input id="new-sezona" placeholder="npr. AW26, SS27..." style="width:100%;">
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" onclick="addSezona()">Dodaj</button>
+      <button class="btn" onclick="closeSezonaModal()">Odustani</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbwjXMKkBfvGN4-LVWAJ5EvzUE5EccXwV2Y8beuyfJNz_oFrZ3vDPwBhUYuaL8lYA1k/exec';
+
+let currentSeason = 'SS25';
+let cache = { artikli: [], isporuke: [], prodaja: [] };
+let sezone = [];
+
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+function api(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Math.random().toString(36).slice(2);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      document.getElementById('jsonp-' + cbName)?.remove();
+      reject(new Error('Timeout — provjeri internet ili Apps Script deployment'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      document.getElementById('jsonp-' + cbName)?.remove();
+      resolve(data);
+    };
+
+    params.callback = cbName;
+    const url = API + '?' + new URLSearchParams(params).toString();
+    const script = document.createElement('script');
+    script.id = 'jsonp-' + cbName;
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      script.remove();
+      reject(new Error('Script load failed — provjeri Apps Script URL'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function apiBatch(action, dataArray) {
+  // For large payloads, split and send sequentially via JSONP
+  const CHUNK = 50;
+  let totalAdded = 0;
+  for (let i = 0; i < dataArray.length; i += CHUNK) {
+    const chunk = dataArray.slice(i, i + CHUNK);
+    toast('Uvozim... ' + Math.min(i + CHUNK, dataArray.length) + ' / ' + dataArray.length);
+    const res = await api({ action, data: JSON.stringify(chunk) });
+    if (res && res.error) throw new Error(res.error);
+    totalAdded += chunk.length;
+  }
+  return { success: true, added: totalAdded };
+}
+
+async function loadSezone() {
+  try {
+    const data = await api({ action: 'getSezone' });
+    sezone = data.sezone || ['SS25'];
+    const sel = document.getElementById('season-sel');
+    sel.innerHTML = sezone.map(s => `<option value="${s}">${s}</option>`).join('');
+    sel.value = currentSeason;
+  } catch(e) { sezone = ['SS25']; }
+}
+
+async function loadData() {
+  document.getElementById('sync-status').textContent = '⏳ Sinkronizacija...';
+  try {
+    const data = await api({ action: 'getAll', season: currentSeason });
+    if (data.error) {
+      document.getElementById('sync-status').textContent = '⚠ Greška';
+      toast('Greška: ' + data.error, 'error');
+      console.error('API error:', data.error);
+      return;
+    }
+    cache.artikli = data.artikli || [];
+    cache.isporuke = data.isporuke || [];
+    cache.prodaja = data.prodaja || [];
+    refreshAll();
+    document.getElementById('sync-status').textContent = '✓ Sinkronizirano';
+  } catch(e) {
+    document.getElementById('sync-status').textContent = '⚠ Greška';
+    toast('Greška: ' + e.message, 'error');
+    console.error('loadData error:', e);
+  }
+}
+
+function changeSeason(s) {
+  currentSeason = s;
+  loadData();
+}
+
+function getStats(kod) {
+  const isporuceno = cache.isporuke.filter(i => i.kod === kod).reduce((s,i) => s + (parseInt(i.kol)||0), 0);
+  const prodano = cache.prodaja.filter(p => p.kod === kod).reduce((s,p) => s + (parseInt(p.kol)||0), 0);
+  const prihod = cache.prodaja.filter(p => p.kod === kod).reduce((s,p) => s + ((parseFloat(p.cijena)||0)*(parseInt(p.kol)||0)), 0);
+  return { isporuceno, prodano, prihod };
+}
+
+function calcGMROI(a) {
+  const { prihod, prodano } = getStats(a.kod);
+  if (!a.nabavna || prodano === 0 || prihod === 0) return null;
+  const cogs = prodano * parseFloat(a.nabavna);
+  const gp = prihod - cogs;
+  const avgInv = (parseInt(a.kol_naruceno||0) * parseFloat(a.nabavna)) / 2;
+  if (avgInv === 0) return null;
+  return (gp / avgInv).toFixed(2);
+}
+
+function calcCoverage(a) {
+  const { isporuceno, prodano } = getStats(a.kod);
+  const zaliha = isporuceno - prodano;
+  const dates = cache.prodaja.filter(p => p.kod === a.kod && p.datum);
+  if (dates.length < 2 || prodano === 0) return null;
+  const first = new Date(Math.min(...dates.map(p => new Date(p.datum))));
+  const last = new Date(Math.max(...dates.map(p => new Date(p.datum))));
+  const days = Math.max(1, (last - first) / 86400000);
+  const dps = prodano / days;
+  return dps > 0 ? Math.round(zaliha / dps) : null;
+}
+
+function pctBar(val, max) {
+  const pct = max > 0 ? Math.min(100, (val/max)*100) : 0;
+  const cls = pct >= 70 ? 'good' : pct >= 40 ? 'mid' : 'low';
+  return `<div class="pct-bar"><div class="pct-track"><div class="pct-fill ${cls}" style="width:${pct.toFixed(0)}%"></div></div><span>${pct.toFixed(0)}%</span></div>`;
+}
+
+function renderArtikli() {
+  const fs = document.getElementById('filter-spol').value;
+  const fq = (document.getElementById('filter-search').value||'').toLowerCase();
+  const rows = cache.artikli.filter(a => {
+    if (fs && a.spol !== fs) return false;
+    if (fq && !String(a.kod).toLowerCase().includes(fq) && !String(a.ime).toLowerCase().includes(fq)) return false;
+    return true;
+  }).map(a => {
+    const { isporuceno, prodano, prihod } = getStats(a.kod);
+    const naruceno = parseInt(a.kol_naruceno)||0;
+    const nadopunjeno = parseInt(a.kol_nadopunjeno)||0;
+    const total = naruceno + nadopunjeno;
+    const zaliha = isporuceno - prodano;
+    const sellThrough = isporuceno > 0 ? ((prodano/isporuceno)*100).toFixed(0) : 0;
+    const gmroi = calcGMROI(a);
+    const coverage = calcCoverage(a);
+    const asp = prodano > 0 ? '€'+(prihod/prodano).toFixed(2) : '—';
+    const margin = prodano > 0 && parseFloat(a.nabavna) > 0 ? (((prihod - prodano*parseFloat(a.nabavna))/prihod)*100).toFixed(1)+'%' : '—';
+    const sb = {M:'badge-m',F:'badge-f',U:'badge-u'};
+    return `<tr>
+      <td class="mono">${a.kod}</td><td>${a.ime}</td>
+      <td><span class="badge ${sb[a.spol]||'badge-u'}">${a.spol||'?'}</span></td>
+      <td>${a.vrsta||'—'}</td><td>${a.termin||'—'}</td>
+      <td>${naruceno}</td><td>${nadopunjeno}</td><td>${total}</td>
+      <td>${isporuceno}</td><td>${prodano}</td><td style="font-weight:500;">${zaliha}</td>
+      <td>${pctBar(isporuceno, total||naruceno||1)}</td>
+      <td>${pctBar(prodano, total||naruceno||1)}</td>
+      <td>${pctBar(parseInt(sellThrough),100)}</td>
+      <td>${gmroi||'—'}</td>
+      <td>${coverage !== null ? coverage+'d' : '—'}</td>
+      <td>${asp}</td><td>${margin}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteItem('Artikli',${a._rowIndex})">Briši</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('artikli-tbody').innerHTML = rows || `<tr><td colspan="19" class="empty-state">Nema artikala za ovu sezonu.</td></tr>`;
+}
+
+function renderIsporuke() {
+  const sorted = [...cache.isporuke].sort((a,b) => String(b.datum).localeCompare(String(a.datum)));
+  document.getElementById('isporuke-tbody').innerHTML = sorted.map(i =>
+    `<tr><td>${i.datum}</td><td class="mono">${i.kod}</td><td>${i.ime}</td><td>${i.kol}</td><td>${i.napomena||'—'}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteItem('Isporuke',${i._rowIndex})">Briši</button></td></tr>`
+  ).join('') || `<tr><td colspan="6" class="empty-state">Nema isporuka.</td></tr>`;
+}
+
+function renderProdaja() {
+  const sorted = [...cache.prodaja].sort((a,b) => String(b.datum).localeCompare(String(a.datum)));
+  document.getElementById('prodaja-tbody').innerHTML = sorted.map(p => {
+    const prihod = ((parseFloat(p.cijena)||0)*(parseInt(p.kol)||0)).toFixed(2);
+    return `<tr><td>${p.datum}</td><td class="mono">${p.kod}</td><td>${p.ime}</td><td>${p.kol}</td>
+    <td>€${parseFloat(p.cijena||0).toFixed(2)}</td><td>€${prihod}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteItem('Prodaja',${p._rowIndex})">Briši</button></td></tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty-state">Nema prodaje.</td></tr>`;
+}
+
+function renderKPIs() {
+  const totalNaruceno = cache.artikli.reduce((s,a) => s+(parseInt(a.kol_naruceno)||0)+(parseInt(a.kol_nadopunjeno)||0),0);
+  const totalIsporuceno = cache.isporuke.reduce((s,i) => s+(parseInt(i.kol)||0),0);
+  const totalProdano = cache.prodaja.reduce((s,p) => s+(parseInt(p.kol)||0),0);
+  const totalPrihod = cache.prodaja.reduce((s,p) => s+(parseFloat(p.cijena)||0)*(parseInt(p.kol)||0),0);
+  const sellThrough = totalIsporuceno > 0 ? ((totalProdano/totalIsporuceno)*100).toFixed(0) : 0;
+  const zaliha = totalIsporuceno - totalProdano;
+  const cogs = cache.prodaja.reduce((s,p) => { const a = cache.artikli.find(x=>x.kod===p.kod); return s+(a?parseFloat(a.nabavna||0)*(parseInt(p.kol)||0):0); },0);
+  const margin = totalPrihod>0 ? (((totalPrihod-cogs)/totalPrihod)*100).toFixed(1)+'%' : '—';
+  const asp = totalProdano>0 ? '€'+(totalPrihod/totalProdano).toFixed(2) : '—';
+
+  document.getElementById('kpi-grid').innerHTML = [
+    ['Ukupno naručeno', totalNaruceno.toLocaleString(), 'kom'],
+    ['Isporučeno', totalIsporuceno.toLocaleString(), totalNaruceno>0?Math.round(totalIsporuceno/totalNaruceno*100)+'% od narudžbe':''],
+    ['Prodano', totalProdano.toLocaleString(), 'kom'],
+    ['Zaliha', zaliha.toLocaleString(), 'kom na stanju'],
+    ['Sell-through', sellThrough+'%', 'prodano/isporučeno'],
+    ['Prihod', '€'+totalPrihod.toLocaleString('hr-HR',{minimumFractionDigits:0,maximumFractionDigits:0}), ''],
+    ['Bruto marža', margin, ''],
+    ['ASP', asp, 'avg. prod. cijena'],
+    ['Broj artikala', cache.artikli.length, 'u sezoni'],
+  ].map(([l,v,s]) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div><div class="kpi-sub">${s}</div></div>`).join('');
+
+  const top5 = [...cache.artikli].map(a => { const {prodano} = getStats(a.kod); return {...a,prodano}; }).sort((a,b)=>b.prodano-a.prodano).slice(0,5);
+  const maxP = top5[0]?.prodano||1;
+  document.getElementById('top-items').innerHTML = top5.length ? top5.map(a =>
+    `<div style="display:flex; align-items:center; gap:8px; margin-bottom:9px;">
+      <div class="mono" style="min-width:75px;">${a.kod}</div>
+      <div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${((a.prodano/maxP)*100).toFixed(0)}%;background:var(--green);border-radius:3px;"></div>
+      </div>
+      <div style="font-size:12px;min-width:28px;text-align:right;">${a.prodano}</div>
+    </div>`).join('') : '<div class="empty-state">Nema podataka</div>';
+
+  document.getElementById('gender-breakdown').innerHTML = ['M','F','U'].map(g => {
+    const arts = cache.artikli.filter(a=>a.spol===g);
+    const isp = cache.isporuke.filter(i=>arts.find(a=>a.kod===i.kod)).reduce((s,i)=>s+(parseInt(i.kol)||0),0);
+    const prod = cache.prodaja.filter(p=>arts.find(a=>a.kod===p.kod)).reduce((s,p)=>s+(parseInt(p.kol)||0),0);
+    const st = isp>0?((prod/isp)*100).toFixed(0):0;
+    const labels = {M:'Muški',F:'Ženski',U:'Unisex'};
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="font-size:12px;min-width:58px;color:var(--text2);">${labels[g]}</div>
+      <div style="flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${st}%;background:${parseInt(st)>=70?'var(--green)':parseInt(st)>=40?'var(--amber)':'var(--red)'};border-radius:4px;"></div>
+      </div>
+      <div style="font-size:12px;font-weight:500;min-width:32px;text-align:right;">${st}%</div>
+      <div style="font-size:11px;color:var(--text3);min-width:60px;">${prod}/${isp} kom</div>
+    </div>`;
+  }).join('');
+
+  const events = [
+    ...cache.isporuke.map(i=>({datum:i.datum, text:`Isporuka: ${i.ime} (${i.kol} kom)`, type:'i'})),
+    ...cache.prodaja.map(p=>({datum:p.datum, text:`Prodaja: ${p.ime} (${p.kol} kom × €${parseFloat(p.cijena||0).toFixed(2)})`, type:'p'}))
+  ].sort((a,b)=>String(b.datum).localeCompare(String(a.datum))).slice(0,8);
+  document.getElementById('recent-activity').innerHTML = events.length ? events.map(e =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border);">
+      <span style="font-size:11px;color:var(--text3);min-width:82px;">${e.datum}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${e.type==='i'?'var(--blue)':'var(--green)'};flex-shrink:0;"></span>
+      <span style="font-size:13px;">${e.text}</span>
+    </div>`).join('') : '<div class="empty-state">Nema aktivnosti</div>';
+}
+
+function refreshSelects() {
+  const opts = cache.artikli.map(a=>`<option value="${a.kod}">${a.kod} — ${a.ime}</option>`).join('');
+  document.getElementById('i-artikl').innerHTML = '<option value="">-- Odaberi --</option>'+opts;
+  document.getElementById('p-artikl').innerHTML = '<option value="">-- Odaberi --</option>'+opts;
+}
+
+function refreshAll() { renderKPIs(); renderArtikli(); renderIsporuke(); renderProdaja(); refreshSelects(); }
+
+async function addArtikal() {
+  const kod = document.getElementById('a-kod').value.trim();
+  const ime = document.getElementById('a-ime').value.trim();
+  if (!kod || !ime) return toast('Kod i ime su obavezni!', 'error');
+  if (cache.artikli.find(a=>a.kod===kod)) return toast('Artikl s tim kodom već postoji!', 'error');
+  const row = {
+    sezona: currentSeason, kod, ime,
+    spol: document.getElementById('a-spol').value,
+    vrsta: document.getElementById('a-vrsta').value,
+    termin: document.getElementById('a-termin').value,
+    kol_naruceno: parseInt(document.getElementById('a-naruceno').value)||0,
+    kol_nadopunjeno: parseInt(document.getElementById('a-nadopunjeno').value)||0,
+    cijena: parseFloat(document.getElementById('a-cijena').value)||0,
+    nabavna: parseFloat(document.getElementById('a-nabavna').value)||0
+  };
+  try {
+    await api({ action: 'addArtikal', data: JSON.stringify(row) });
+    toast('Artikl dodan ✓');
+    ['a-kod','a-ime','a-vrsta','a-termin','a-naruceno','a-nadopunjeno','a-cijena','a-nabavna'].forEach(id => document.getElementById(id).value='');
+    await loadData();
+  } catch(e) { toast('Greška pri dodavanju', 'error'); }
+}
+
+async function addIsporuka() {
+  const kod = document.getElementById('i-artikl').value;
+  const datum = document.getElementById('i-datum').value;
+  const kol = parseInt(document.getElementById('i-kol').value)||0;
+  if (!kod || !datum || kol<=0) return toast('Popunite sva obavezna polja!', 'error');
+  const a = cache.artikli.find(x=>x.kod===kod);
+  const row = { sezona: currentSeason, kod, ime: a?a.ime:kod, datum, kol, napomena: document.getElementById('i-napomena').value };
+  try {
+    await api({ action: 'addIsporuka', data: JSON.stringify(row) });
+    toast('Isporuka dodana ✓');
+    document.getElementById('i-kol').value='';
+    document.getElementById('i-napomena').value='';
+    await loadData();
+  } catch(e) { toast('Greška pri dodavanju', 'error'); }
+}
+
+async function addProdaja() {
+  const kod = document.getElementById('p-artikl').value;
+  const datum = document.getElementById('p-datum').value;
+  const kol = parseInt(document.getElementById('p-kol').value)||0;
+  if (!kod || !datum || kol<=0) return toast('Popunite sva obavezna polja!', 'error');
+  const { isporuceno, prodano } = getStats(kod);
+  if (kol > isporuceno - prodano) return toast(`Nema dovoljno zalihe! Dostupno: ${isporuceno-prodano} kom`, 'error');
+  const a = cache.artikli.find(x=>x.kod===kod);
+  const cijena = parseFloat(document.getElementById('p-cijena').value) || (a?parseFloat(a.cijena||0):0);
+  const row = { sezona: currentSeason, kod, ime: a?a.ime:kod, datum, kol, cijena };
+  try {
+    await api({ action: 'addProdaja', data: JSON.stringify(row) });
+    toast('Prodaja dodana ✓');
+    document.getElementById('p-kol').value='';
+    document.getElementById('p-cijena').value='';
+    await loadData();
+  } catch(e) { toast('Greška pri dodavanju', 'error'); }
+}
+
+async function deleteItem(sheet, rowIndex) {
+  if (!confirm('Obrisati ovaj zapis?')) return;
+  try {
+    await api({ action: 'deleteRow', sheet, rowIndex });
+    toast('Obrisano ✓');
+    await loadData();
+  } catch(e) { toast('Greška pri brisanju', 'error'); }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['pregled','artikli','isporuke','prodaja'][i]===tab);
+  });
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function openSezonaModal() { document.getElementById('sezona-modal').classList.add('open'); }
+function closeSezonaModal() { document.getElementById('sezona-modal').classList.remove('open'); }
+
+async function addSezona() {
+  const naziv = document.getElementById('new-sezona').value.trim().toUpperCase();
+  if (!naziv) return toast('Unesite naziv sezone', 'error');
+  try {
+    await api({ action: 'addSezona', sezona: naziv });
+    toast('Sezona dodana ✓');
+    closeSezonaModal();
+    await loadSezone();
+  } catch(e) { toast('Greška', 'error'); }
+}
+
+function importPaste() {
+  const text = document.getElementById('paste-area').value.trim();
+  if (!text) return toast('Nema podataka za uvoz', 'error');
+  const lines = text.split('\n').filter(l=>l.trim());
+  let added = 0, errors = 0;
+  const promises = lines.map(line => {
+    const cols = line.split('\t');
+    if (cols.length < 2) { errors++; return Promise.resolve(); }
+    const [kod, ime, spol, vrsta, termin, kol_naruceno, kol_nadopunjeno, cijena, nabavna] = cols;
+    if (!kod.trim() || !ime.trim()) { errors++; return Promise.resolve(); }
+    if (cache.artikli.find(a=>a.kod===kod.trim())) { errors++; return Promise.resolve(); }
+    added++;
+    return api({ action: 'addArtikal', data: JSON.stringify({
+      sezona: currentSeason, kod: kod.trim(), ime: ime.trim(),
+      spol: (spol||'U').trim(), vrsta: (vrsta||'').trim(),
+      termin: (termin||'').trim(),
+      kol_naruceno: parseInt(kol_naruceno)||0,
+      kol_nadopunjeno: parseInt(kol_nadopunjeno)||0,
+      cijena: parseFloat((cijena||'0').replace(',','.'))||0,
+      nabavna: parseFloat((nabavna||'0').replace(',','.'))||0
+    })});
+  });
+  Promise.all(promises).then(() => {
+    document.getElementById('paste-area').value='';
+    toast(`Uvezeno ${added} artikala${errors>0?' ('+errors+' greška)':''} ✓`);
+    loadData();
+  });
+}
+
+function parseCSVRows(text) {
+  const lines = text.split('\n').map(l => l.replace(/\r/g, '').trim()).filter(Boolean);
+  const startIdx = lines[0].toLowerCase().includes('kod') || lines[0].toLowerCase().includes('code') ? 1 : 0;
+  const rows = [];
+  for (const line of lines.slice(startIdx)) {
+    const cols = line.split(',');
+    if (cols.length < 2) continue;
+    let kod, ime, spol, vrsta, termin, naruceno, nadopunjeno, cijena, nabavna;
+    if (cols.length === 9) {
+      [kod, ime, spol, vrsta, termin, naruceno, nadopunjeno, cijena, nabavna] = cols;
+    } else if (cols.length >= 11) {
+      [kod, ime, spol, vrsta, termin, naruceno, nadopunjeno] = cols.slice(0, 7);
+      cijena = cols[7] + '.' + cols[8];
+      nabavna = cols[9] + '.' + (cols[10] || '0');
+    } else if (cols.length === 10) {
+      [kod, ime, spol, vrsta, termin, naruceno, nadopunjeno] = cols.slice(0, 7);
+      cijena = cols[7] + '.' + cols[8];
+      nabavna = '0';
+    } else {
+      [kod, ime, spol, vrsta, termin, naruceno, nadopunjeno, cijena, nabavna] = cols;
+    }
+    if (!kod || !kod.trim()) continue;
+    const spolMapped = (spol||'U').trim() === 'W' ? 'F' : (spol||'U').trim();
+    rows.push({
+      sezona: currentSeason,
+      kod: kod.trim(),
+      ime: (ime||'').trim(),
+      spol: spolMapped,
+      vrsta: (vrsta||'').trim(),
+      termin: (termin||'').trim(),
+      kol_naruceno: parseInt(naruceno)||0,
+      kol_nadopunjeno: parseInt(nadopunjeno)||0,
+      cijena: parseFloat(String(cijena||'0').replace(',','.'))||0,
+      nabavna: parseFloat(String(nabavna||'0').replace(',','.'))||0
+    });
+  }
+  return rows;
+}
+
+async function sendInBatches(rows) {
+  const existing = new Set(cache.artikli.map(a => a.kod));
+  const toAdd = rows.filter(r => {
+    if (existing.has(r.kod)) return false;
+    existing.add(r.kod);
+    return true;
+  });
+  const skipped = rows.length - toAdd.length;
+  if (toAdd.length === 0) return { added: 0, skipped };
+  const res = await apiBatch('batchImport', toAdd);
+  return { added: res.added || toAdd.length, skipped };
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    let text = e.target.result;
+    if (typeof text !== 'string') {
+      const decoder = new TextDecoder('windows-1250');
+      text = decoder.decode(new Uint8Array(e.target.result));
+    }
+    const rows = parseCSVRows(text);
+    if (rows.length === 0) return toast('Nema valjanih redaka u datoteci', 'error');
+    toast(`Pronađeno ${rows.length} artikala, uvozim...`);
+    const { added, skipped } = await sendInBatches(rows);
+    toast(`Uvezeno ${added} artikala${skipped > 0 ? ', preskočeno '+skipped+' (već postoje)' : ''} ✓`);
+    await loadData();
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+function downloadTemplate() {
+  const csv = 'kod,ime,spol,vrsta,termin,kol_naruceno,kol_nadopunjeno,cijena,nabavna\nSS25-001,Primjer jakne,M,JAC,2025-04,100,0,299.00,120.00\n';
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'predlozak_artikli.csv';
+  a.click();
+}
+
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('i-datum').value = today;
+document.getElementById('p-datum').value = today;
+
+loadSezone().then(() => loadData());
+</script>
+</body>
+</html>
